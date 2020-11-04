@@ -3,7 +3,6 @@ import * as ec2 from "@aws-cdk/aws-ec2";
 import * as rds from '@aws-cdk/aws-rds';
 import * as iam from '@aws-cdk/aws-iam';
 import * as elasticache from '@aws-cdk/aws-elasticache';
-import { countReset } from "console";
 
 
 export class TheStack extends cdk.Stack {
