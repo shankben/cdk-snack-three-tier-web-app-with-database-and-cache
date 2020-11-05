@@ -14,35 +14,23 @@ export default class ElastiCacheCluster extends Construct {
 
     const { vpc } = props;
 
-    const subnetGroup = new CfnSubnetGroup(
-      this,
-      "ElastiCacheSubnetGroup",
-      {
-        description: "ElastiCache Subnet Group",
-        subnetIds: vpc.selectSubnets({ onePerAz: true }).subnetIds
-      }
-    );
+    const subnetGroup = new CfnSubnetGroup(this, "SubnetGroup", {
+      description: "ElastiCache Subnet Group",
+      subnetIds: vpc.selectSubnets({ onePerAz: true }).subnetIds
+    });
 
-    const securityGroup = new SecurityGroup(
-      this,
-      "ElastiCacheSecurityGroup",
-      { vpc }
-    );
+    const securityGroup = new SecurityGroup(this, "SecurityGroup", { vpc });
 
-    this.cluster = new CfnReplicationGroup(
-      this,
-      "ElastiCacheCluster",
-      {
-        replicationGroupDescription: "ElastiCache Cluster",
-        engine: "redis",
-        numCacheClusters: 1,
-        multiAzEnabled: false,
-        automaticFailoverEnabled: false,
-        cacheNodeType: "cache.t3.micro",
-        cacheSubnetGroupName: subnetGroup.ref,
-        securityGroupIds: [securityGroup.securityGroupId]
-      }
-    );
+    this.cluster = new CfnReplicationGroup(this, "Cluster", {
+      replicationGroupDescription: "ElastiCache Cluster",
+      engine: "redis",
+      numCacheClusters: 1,
+      multiAzEnabled: false,
+      automaticFailoverEnabled: false,
+      cacheNodeType: "cache.t3.micro",
+      cacheSubnetGroupName: subnetGroup.ref,
+      securityGroupIds: [securityGroup.securityGroupId]
+    });
 
     // const elastiCacheCluster = new CfnCacheCluster(
     //   this,

@@ -35,6 +35,5 @@ export default class Database extends Construct {
       credentials: Credentials.fromUsername("User"),
       maxAllocatedStorage: 200
     });
-
   }
 }
