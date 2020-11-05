@@ -4,7 +4,7 @@ import {
   InstanceClass,
   InstanceSize,
   InstanceType,
-  Vpc
+  IVpc
 } from "@aws-cdk/aws-ec2";
 
 import {
@@ -15,7 +15,7 @@ import {
 } from "@aws-cdk/aws-rds";
 
 export interface DatabaseProps {
-  vpc: Vpc;
+  vpc: IVpc;
 }
 
 export default class Database extends Construct {

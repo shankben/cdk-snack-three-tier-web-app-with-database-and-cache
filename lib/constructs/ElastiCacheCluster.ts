@@ -1,9 +1,9 @@
 import { Construct } from "@aws-cdk/core";
-import { SecurityGroup, Vpc } from "@aws-cdk/aws-ec2";
+import { SecurityGroup, IVpc } from "@aws-cdk/aws-ec2";
 import { CfnReplicationGroup, CfnSubnetGroup } from "@aws-cdk/aws-elasticache";
 
 export interface ElastiCacheClusterProps {
-  vpc: Vpc;
+  vpc: IVpc;
 }
 
 export default class ElastiCacheCluster extends Construct {

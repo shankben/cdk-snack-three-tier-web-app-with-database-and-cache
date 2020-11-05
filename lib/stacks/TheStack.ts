@@ -16,7 +16,7 @@ export default class TheStack extends Stack {
     //   effect: Effect.ALLOW
     // });
 
-    const vpc = new Vpc(this, "Vpc", { maxAzs: 3 });
+    const vpc = Vpc.fromLookup(this, 'DefaultVPC', { isDefault: true });
     new Database(this, "Database", { vpc });
     new ElastiCacheCluster(this, "Cluster", { vpc });
   }
