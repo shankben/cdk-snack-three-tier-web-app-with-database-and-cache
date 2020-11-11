@@ -1,6 +1,10 @@
 import { Construct } from "@aws-cdk/core";
 import { SecurityGroup, IVpc } from "@aws-cdk/aws-ec2";
-import { CfnReplicationGroup, CfnSubnetGroup } from "@aws-cdk/aws-elasticache";
+import {
+  CfnReplicationGroup,
+  CfnCacheCluster,
+  CfnSubnetGroup
+} from "@aws-cdk/aws-elasticache";
 
 export interface ElastiCacheClusterProps {
   vpc: IVpc;
@@ -21,28 +25,26 @@ export default class ElastiCacheCluster extends Construct {
 
     const securityGroup = new SecurityGroup(this, "SecurityGroup", { vpc });
 
-    this.cluster = new CfnReplicationGroup(this, "Cluster", {
-      replicationGroupDescription: "ElastiCache Cluster",
-      engine: "redis",
-      numCacheClusters: 1,
-      multiAzEnabled: false,
-      automaticFailoverEnabled: false,
+    const cluster = new CfnCacheCluster(this, "ElastiCacheCluster", {
+      azMode: "single-az",
       cacheNodeType: "cache.t3.micro",
       cacheSubnetGroupName: subnetGroup.ref,
-      securityGroupIds: [securityGroup.securityGroupId]
+      clusterName: "ThreeTierWebAppElastiCacheCluster",
+      engine: "redis",
+      numCacheNodes: 1,
+      vpcSecurityGroupIds: [securityGroup.securityGroupId]
     });
 
-    // const elastiCacheCluster = new CfnCacheCluster(
-    //   this,
-    //   "ElastiCacheCluster",
-    //   {
-    //     cacheNodeType: "cache.t3.micro",
-    //     engine: "memcached",
-    //     numCacheNodes: 2,
-    //     azMode: "cross-az",
-    //     cacheSubnetGroupName: elastiCacheSubnetGroup.ref,
-    //     vpcSecurityGroupIds: [elastiCacheVpcSecurityGroup.securityGroupId]
-    //   }
-    // );
+    this.cluster = new CfnReplicationGroup(this, "ElastiCacheCluster", {
+      replicationGroupDescription: "ElastiCache Cluster",
+      primaryClusterId: cluster.ref
+      // engine: "redis",
+      // numCacheClusters: 1,
+      // multiAzEnabled: false,
+      // automaticFailoverEnabled: false,
+      // cacheNodeType: "cache.t3.micro",
+      // cacheSubnetGroupName: subnetGroup.ref,
+      // securityGroupIds: [securityGroup.securityGroupId]
+    });
   }
 }
