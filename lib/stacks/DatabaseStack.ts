@@ -35,7 +35,7 @@ export default class DatabaseStack extends NestedStack {
       description: "Subnet Group for CDK Snack",
       vpcSubnets: vpc.selectSubnets({
         onePerAz: true,
-        subnetType: SubnetType.ISOLATED
+        subnetType: SubnetType.PRIVATE
       })
     });
 

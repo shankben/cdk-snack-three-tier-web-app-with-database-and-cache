@@ -22,7 +22,7 @@ export default class CacheStack extends NestedStack {
       description: "Subnet Group for CDK Snack",
       subnetIds: vpc.selectSubnets({
         onePerAz: true,
-        subnetType: SubnetType.ISOLATED
+        subnetType: SubnetType.PRIVATE
       }).subnetIds
     });
 
