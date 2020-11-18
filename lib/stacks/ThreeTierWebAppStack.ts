@@ -1,9 +1,11 @@
 import { Construct, Stack, StackProps } from "@aws-cdk/core";
 import { Vpc } from "@aws-cdk/aws-ec2";
+
 // import { Effect, PolicyStatement } from "@aws-cdk/aws-iam";
 // import Database from "../constructs/Database";
 // import ElastiCacheCluster from "../constructs/ElastiCacheCluster";
-import CacheStack from "../stacks/CacheStack";
+// import CacheStack from "../stacks/CacheStack";
+
 import DatabaseStack from "../stacks/DatabaseStack";
 import WebServiceStack from "../stacks/WebServiceStack";
 
@@ -17,7 +19,7 @@ export default class TheStack extends Stack {
     //   effect: Effect.ALLOW
     // });
 
-    const vpc = new Vpc(this, "Vpc");
+    const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
 
     // const cacheStack = new CacheStack(this, "CacheStack", { vpc });
     const databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });

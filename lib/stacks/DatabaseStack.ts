@@ -21,7 +21,6 @@ export interface DatabaseStackProps extends NestedStackProps {
 }
 
 export default class DatabaseStack extends NestedStack {
-  // public readonly credentials: Credentials;
   public readonly database: DatabaseInstance;
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
@@ -31,7 +30,7 @@ export default class DatabaseStack extends NestedStack {
 
     const subnetGroup = new SubnetGroup(this, "SubnetGroup", {
       vpc,
-      description: "Subnet Group for CDK Snack",
+      description: "Subnet Group for ThreeTierWebApp",
       vpcSubnets: vpc.selectSubnets({
         onePerAz: true,
         subnetType: SubnetType.PRIVATE
@@ -41,14 +40,14 @@ export default class DatabaseStack extends NestedStack {
     this.database = new DatabaseInstance(this, "DatabaseInstance", {
       vpc,
       subnetGroup,
+      allocatedStorage: 10,
+      credentials: Credentials.fromGeneratedSecret("user"),
       databaseName: "app",
+      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
+      maxAllocatedStorage: 20,
       engine: DatabaseInstanceEngine.mysql({
         version: MysqlEngineVersion.VER_8_0_21
-      }),
-      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
-      credentials: Credentials.fromGeneratedSecret("user"),
-      allocatedStorage: 10,
-      maxAllocatedStorage: 20
+      })
     });
   }
 }
