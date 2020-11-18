@@ -52,7 +52,12 @@ ENV PATH="$PATH:/root/.composer/vendor/bin"
 COPY ./php/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 WORKDIR /var/www/html
-RUN laravel new app
+RUN \
+  laravel new app && \ 
+  cd app && \
+  composer require predis/predis
+COPY ./app/routes/api.php /var/www/html/app/routes/api.php
 WORKDIR /var/www/html/app
+RUN php artisan config:clear
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["php", "artisan", "serve", "--host", "0.0.0.0"]
