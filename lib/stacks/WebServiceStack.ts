@@ -1,36 +1,23 @@
 import path from "path";
 import { Construct, NestedStack, NestedStackProps } from "@aws-cdk/core";
 import { IVpc, Port } from "@aws-cdk/aws-ec2";
+import { ApplicationLoadBalancer } from "@aws-cdk/aws-elasticloadbalancingv2";
+import { DatabaseInstance } from "@aws-cdk/aws-rds";
+import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
 
 import {
-  Cluster,
   AwsLogDriver,
+  Cluster,
   ContainerImage,
   FargateService,
   FargateTaskDefinition,
-} from "@aws-cdk/aws-ecs";
-
-import {
   Secret
-} from "@aws-cdk/aws-secretsmanager";
-
-import {
-  ApplicationLoadBalancer
-} from "@aws-cdk/aws-elasticloadbalancingv2";
-
-import {
-  DatabaseInstance,
-} from "@aws-cdk/aws-rds";
-
-import {
-  CfnCacheCluster,
-} from "@aws-cdk/aws-elasticache";
-
+} from "@aws-cdk/aws-ecs";
 
 export interface WebServiceStackProps extends NestedStackProps {
   vpc: IVpc;
   database: DatabaseInstance;
-  cluster: CfnCacheCluster;
+  // cluster: CfnCacheCluster;
 }
 
 export default class WebServiceStack extends NestedStack {
@@ -39,40 +26,43 @@ export default class WebServiceStack extends NestedStack {
   constructor(scope: Construct, id: string, props: WebServiceStackProps) {
     super(scope, id, props);
 
-    const { 
+    const {
       vpc,
-      database,
-      cluster:cacheCluster
+      database
     } = props;
 
-    const cluster = new Cluster(this, "Cluster", { vpc });
+    const cluster = new Cluster(this, "Cluster", {
+      vpc,
+      clusterName: "ThreeTierWebApp"
+    });
 
     const taskDefinition = new FargateTaskDefinition(this, "TaskDef", {
       memoryLimitMiB: 512,
-      cpu: 256,
+      cpu: 256
     });
 
-
-    // const secret = Secret
-    //   .fromSecretCompleteArn(this, "Secret", "arn:aws:secretsmanager:us-east-1:276885109151:secret:DatabaseInstanceSecret2C9E2-BhpWUyd7D80O-9FGNfQ");
-    const secret = Secret
-      .fromSecretCompleteArn(this, "Secret", "arn:aws:secretsmanager:us-east-1:276885109151:secret:DatabaseInstanceSecret2C9E2-BhpWUyd7D80O-9FGNfQ")
-      .secretValueFromJson("password");
-      const laravelContainer = taskDefinition.addContainer("LaravelContainer", {
+    const laravelContainer = taskDefinition.addContainer("LaravelContainer", {
       image: ContainerImage.fromAsset(path.join(this.assetPath, "laravel")),
-      logging: new AwsLogDriver({ streamPrefix: "laravelContainerLogs"}),
+      logging: new AwsLogDriver({
+        streamPrefix: "laravel",
+        logGroup: new LogGroup(this, "LaravelLogGroup", {
+          logGroupName: "/aws/ecs/laravel",
+          retention: RetentionDays.ONE_DAY
+        })
+      }),
       environment: {
-        DB_HOST: "tdn8xqd5tqwyu4.cbt7lpvq89mn.us-east-1.rds.amazonaws.com",
-        DB_PORT: "3306",
-        DB_DATABASE: "ThreeTierWebAppDatabase",
-        DB_USERNAME: "user",
-        DB_PASSWORD: secret.toString(),
-        REDIS_HOST: "threetierwebappelasticachecluster.7i8jpv.0001.use1.cache.amazonaws.com",
-        REDIS_PORT: "6379",
-        REDIS_CLIENT: "predis"
+        // DB_HOST: database.instanceEndpoint.hostname,
+        // DB_PORT: database.dbInstanceEndpointPort,
+        DB_DATABASE: "app",
+        // DB_USERNAME: "user",
+        // DB_PASSWORD: "password",
+        // REDIS_HOST: cacheCluster.attrRedisEndpointAddress,
+        // REDIS_PORT: cacheCluster.attrRedisEndpointPort,
+        // REDIS_CLIENT: "predis"
       },
       // secrets: {
-      //   "DB_PASSWORD": ecsSecret.fromSecretsManager(secret)
+      //   DB_USERNAME: Secret.fromSecretsManager(database.secret!, "username"),
+      //   DB_PASSWORD: Secret.fromSecretsManager(database.secret!, "password")
       // }
     });
 
@@ -86,19 +76,21 @@ export default class WebServiceStack extends NestedStack {
       desiredCount: 1
     });
 
+    database.connections.allowFrom(
+      service,
+      Port.tcp(database.instanceEndpoint.port)
+    );
+
     const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
       vpc,
       internetFacing: true
     });
+
     loadBalancer
       .addListener("Listener", { port: 80 })
       .addTargets("FargateServiceTarget", {
         port: 8000,
         targets: [service]
       });
-
-      database.connections.allowFrom(service, Port.tcp(3306));
-      // shenanigans for cache to be accessed.
-      // cacheCluster.
   }
 }

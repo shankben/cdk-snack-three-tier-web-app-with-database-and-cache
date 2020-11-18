@@ -44,20 +44,23 @@ RUN \
   composer global require laravel/installer && \
   addgroup -g 1000 laravel && \
   adduser -G laravel -g laravel -s /bin/sh -D laravel && \
-  mkdir -p /var/www/html && \
-  chown laravel:laravel /var/www/html && \
+  mkdir -p /laravel && \
+  chown laravel:laravel /laravel && \
   apk del build-deps
 
 ENV PATH="$PATH:/root/.composer/vendor/bin"
 COPY ./php/www.conf /usr/local/etc/php-fpm.d/www.conf
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-WORKDIR /var/www/html
+WORKDIR /laravel
 RUN \
-  laravel new app && \ 
+  laravel new app && \
   cd app && \
   composer require predis/predis
-COPY ./app/routes/api.php /var/www/html/app/routes/api.php
-WORKDIR /var/www/html/app
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./app/routes/api.php /laravel/app/routes/api.php
+COPY ./app/.env /laravel/app/.env
+
+WORKDIR /laravel/app
 RUN php artisan config:clear
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["php", "artisan", "serve", "--host", "0.0.0.0"]

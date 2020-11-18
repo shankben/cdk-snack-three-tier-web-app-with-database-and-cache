@@ -19,12 +19,13 @@ export default class TheStack extends Stack {
 
     const vpc = new Vpc(this, "Vpc");
 
-    const cacheStack = new CacheStack(this, "CacheStack", { vpc });
+    // const cacheStack = new CacheStack(this, "CacheStack", { vpc });
     const databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
-    new WebServiceStack(this, "WebServiceStack", { 
+
+    new WebServiceStack(this, "WebServiceStack", {
       vpc,
-       database: databaseStack.database,
-       cluster: cacheStack.cluster,
+      database: databaseStack.database,
+      // cluster: cacheStack.cluster
     });
   }
 }

@@ -21,9 +21,8 @@ export interface DatabaseStackProps extends NestedStackProps {
 }
 
 export default class DatabaseStack extends NestedStack {
+  // public readonly credentials: Credentials;
   public readonly database: DatabaseInstance;
-
-  private readonly databaseUsername = "user";
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
@@ -42,13 +41,14 @@ export default class DatabaseStack extends NestedStack {
     this.database = new DatabaseInstance(this, "DatabaseInstance", {
       vpc,
       subnetGroup,
-      databaseName: "ThreeTierWebAppDatabase",
+      databaseName: "app",
       engine: DatabaseInstanceEngine.mysql({
         version: MysqlEngineVersion.VER_8_0_21
       }),
       instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
-      credentials: Credentials.fromUsername(this.databaseUsername),
-      maxAllocatedStorage: 200
+      credentials: Credentials.fromGeneratedSecret("user"),
+      allocatedStorage: 10,
+      maxAllocatedStorage: 20
     });
   }
 }
