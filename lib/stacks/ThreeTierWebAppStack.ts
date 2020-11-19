@@ -2,7 +2,6 @@ import path from "path";
 import { Construct, Stack, StackProps, RemovalPolicy } from "@aws-cdk/core";
 import { ApplicationLoadBalancer } from "@aws-cdk/aws-elasticloadbalancingv2";
 import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
-// import { Secret } from "@aws-cdk/aws-secretsmanager";
 import { Vpc, Port } from "@aws-cdk/aws-ec2";
 
 import {
@@ -17,43 +16,29 @@ import {
 import CacheStack from "./CacheStack";
 import DatabaseStack from "./DatabaseStack";
 
+export enum Flavor {
+  Laravel
+}
+
+export interface ThreeTierWebAppStackProps extends StackProps {
+  flavor: Flavor;
+}
+
 export default class ThreeTierWebAppStack extends Stack {
   private assetPath = path.join(__dirname, "..", "..", "src", "ecs");
 
+  private flavor: Flavor = Flavor.Laravel;
+  private cacheStack: CacheStack;
   private databaseStack: DatabaseStack;
+  private taskDefinition: FargateTaskDefinition;
 
   private rdsSecret = (name: string) => EcsSecret.fromSecretsManager(
     this.databaseStack.database.secret!,
     name
   );
 
-  constructor(scope: Construct, id: string, props: StackProps) {
-    super(scope, id, props);
-
-    const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
-
-    //// Data Tier
-    const cacheStack = new CacheStack(this, "CacheStack", { vpc });
-    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
-
-    //// Integration Tier
-    const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
-      vpc,
-      internetFacing: true
-    });
-
-    //// Web Tier
-    const cluster = new Cluster(this, "Cluster", {
-      vpc,
-      clusterName: "ThreeTierWebApp"
-    });
-
-    const taskDefinition = new FargateTaskDefinition(this, "TaskDef", {
-      cpu: 256,
-      memoryLimitMiB: 512
-    });
-
-    taskDefinition
+  private addLaravelContainerToTask() {
+    this.taskDefinition
       .addContainer("LaravelContainer", {
         image: ContainerImage.fromAsset(path.join(this.assetPath, "laravel")),
         logging: new AwsLogDriver({
@@ -65,8 +50,8 @@ export default class ThreeTierWebAppStack extends Stack {
           })
         }),
         environment: {
-          REDIS_HOST: cacheStack.cluster.attrRedisEndpointAddress,
-          REDIS_PORT: cacheStack.cluster.attrRedisEndpointPort,
+          REDIS_HOST: this.cacheStack.cluster.attrRedisEndpointAddress,
+          REDIS_PORT: this.cacheStack.cluster.attrRedisEndpointPort,
           REDIS_CLIENT: "predis"
         },
         secrets: {
@@ -81,10 +66,53 @@ export default class ThreeTierWebAppStack extends Stack {
       .addPortMappings({
         containerPort: 8000
       });
+  }
+
+  // TODO
+  // private addDjangoContainerToTask() { }
+
+  // TODO
+  // private addExpressContainerToTask() { }
+
+  constructor(scope: Construct, id: string, props: ThreeTierWebAppStackProps) {
+    super(scope, id, props);
+
+    this.flavor = props.flavor;
+
+    const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
+
+    //// Data Tier
+    this.cacheStack = new CacheStack(this, "CacheStack", { vpc });
+    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
+
+    //// Integration Tier
+    const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
+      vpc,
+      internetFacing: true
+    });
+
+    //// Web Tier
+    const cluster = new Cluster(this, "Cluster", {
+      vpc,
+      clusterName: "ThreeTierWebApp"
+    });
+
+    this.taskDefinition = new FargateTaskDefinition(this, "TaskDef", {
+      cpu: 256,
+      memoryLimitMiB: 512
+    });
+
+    switch (this.flavor) {
+      case Flavor.Laravel:
+        this.addLaravelContainerToTask();
+        break;
+      default:
+        throw new Error("Sounds tasty...");
+    }
 
     const service = new FargateService(this, "FargateService", {
       cluster,
-      taskDefinition,
+      taskDefinition: this.taskDefinition,
       serviceName: "LaravelService",
       desiredCount: 1
     });
