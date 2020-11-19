@@ -17,7 +17,7 @@ import CacheStack from "./CacheStack";
 import DatabaseStack from "./DatabaseStack";
 
 export enum Flavor {
-  Laravel
+  Laravel = "laravel"
 }
 
 export interface ThreeTierWebAppStackProps extends StackProps {
@@ -37,18 +37,32 @@ export default class ThreeTierWebAppStack extends Stack {
     name
   );
 
+  private containerDefinitionForFlavor() {
+    let name;
+    switch (this.flavor) {
+      case Flavor.Laravel:
+        name = Flavor.Laravel.toString();
+        break;
+      default:
+        throw new Error("Mmmm...");
+    }
+    return {
+      image: ContainerImage.fromAsset(path.join(this.assetPath, name)),
+      logging: new AwsLogDriver({
+        streamPrefix: name,
+        logGroup: new LogGroup(this, `${name}LogGroup`, {
+          logGroupName: `/aws/ecs/${name}`,
+          retention: RetentionDays.ONE_DAY,
+          removalPolicy: RemovalPolicy.DESTROY
+        })
+      })
+    };
+  }
+
   private addLaravelContainerToTask() {
     this.taskDefinition
       .addContainer("LaravelContainer", {
-        image: ContainerImage.fromAsset(path.join(this.assetPath, "laravel")),
-        logging: new AwsLogDriver({
-          streamPrefix: "laravel",
-          logGroup: new LogGroup(this, "LaravelLogGroup", {
-            logGroupName: "/aws/ecs/laravel",
-            retention: RetentionDays.ONE_DAY,
-            removalPolicy: RemovalPolicy.DESTROY
-          })
-        }),
+        ...this.containerDefinitionForFlavor(),
         environment: {
           REDIS_HOST: this.cacheStack.cluster.attrRedisEndpointAddress,
           REDIS_PORT: this.cacheStack.cluster.attrRedisEndpointPort,
