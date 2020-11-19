@@ -138,6 +138,16 @@ export default class ThreeTierWebAppStack extends Stack {
       Port.tcp(database.instanceEndpoint.port)
     );
 
+    const { 
+      securityGroup:cacheSecurityGroup,
+      cluster:cacheCluster
+    } = this.cacheStack;
+
+    cacheSecurityGroup.connections.allowFrom(
+      service,
+      Port.tcp(cacheCluster.port ?? 6379)
+    )
+
     loadBalancer
       .addListener("Listener", { port: 80 })
       .addTargets("FargateServiceTarget", {

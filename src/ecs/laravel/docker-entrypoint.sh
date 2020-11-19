@@ -17,6 +17,7 @@ LARAVEL_VARS=(
   REDIS_HOST \
   REDIS_PASSWORD \
   REDIS_PORT \
+  REDIS_CLIENT \
 )
 
 for v in ${LARAVEL_VARS[@]}; do

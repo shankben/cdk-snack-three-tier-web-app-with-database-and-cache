@@ -5,6 +5,7 @@ import {
   // CfnReplicationGroup,
   CfnSubnetGroup
 } from "@aws-cdk/aws-elasticache";
+import { runInThisContext } from "vm";
 
 export interface CacheStackProps extends NestedStackProps {
   vpc: IVpc;
@@ -12,6 +13,7 @@ export interface CacheStackProps extends NestedStackProps {
 
 export default class CacheStack extends NestedStack {
   public readonly cluster: CfnCacheCluster;
+  public readonly securityGroup: SecurityGroup;
 
   constructor(scope: Construct, id: string, props: CacheStackProps) {
     super(scope, id, props);
@@ -26,7 +28,7 @@ export default class CacheStack extends NestedStack {
       }).subnetIds
     });
 
-    const securityGroup = new SecurityGroup(this, "SecurityGroup", { vpc });
+    this.securityGroup = new SecurityGroup(this, "SecurityGroup", { vpc });
 
     this.cluster = new CfnCacheCluster(this, "CacheCluster", {
       azMode: "single-az",
@@ -35,7 +37,7 @@ export default class CacheStack extends NestedStack {
       clusterName: "ThreeTierWebAppElastiCacheCluster",
       engine: "redis",
       numCacheNodes: 1,
-      vpcSecurityGroupIds: [securityGroup.securityGroupId]
+      vpcSecurityGroupIds: [this.securityGroup.securityGroupId]
     });
 
     // this.cluster = new CfnReplicationGroup(this, "Cluster", {
