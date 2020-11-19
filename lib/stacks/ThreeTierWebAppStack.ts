@@ -27,6 +27,8 @@ export interface ThreeTierWebAppStackProps extends StackProps {
 export default class ThreeTierWebAppStack extends Stack {
   private assetPath = path.join(__dirname, "..", "..", "src", "ecs");
 
+  private readonly containerPort = 8000;
+
   private flavor: Flavor = Flavor.Laravel;
   private cacheStack: CacheStack;
   private databaseStack: DatabaseStack;
@@ -78,7 +80,7 @@ export default class ThreeTierWebAppStack extends Stack {
         }
       })
       .addPortMappings({
-        containerPort: 8000
+        containerPort: this.containerPort
       });
   }
 
@@ -141,7 +143,7 @@ export default class ThreeTierWebAppStack extends Stack {
     loadBalancer
       .addListener("Listener", { port: 80 })
       .addTargets("FargateServiceTarget", {
-        port: 8000,
+        port: this.containerPort,
         targets: [service]
       });
   }
