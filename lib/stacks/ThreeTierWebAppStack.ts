@@ -101,13 +101,13 @@ export default class ThreeTierWebAppStack extends Stack {
     this.cacheStack = new CacheStack(this, "CacheStack", { vpc });
     this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
 
-    //// Integration Tier
+    //// Web Tier
     const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
       vpc,
       internetFacing: true
     });
 
-    //// Web Tier
+    //// Integration Tier
     const cluster = new Cluster(this, "Cluster", {
       vpc,
       clusterName: "ThreeTierWebApp"
