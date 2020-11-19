@@ -127,7 +127,7 @@ export default class ThreeTierWebAppStack extends Stack {
     const service = new FargateService(this, "FargateService", {
       cluster,
       taskDefinition: this.taskDefinition,
-      serviceName: "LaravelService",
+      serviceName: "FargateService",
       desiredCount: 1
     });
 
