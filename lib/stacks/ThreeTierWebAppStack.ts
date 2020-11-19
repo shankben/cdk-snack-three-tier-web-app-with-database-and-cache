@@ -2,7 +2,7 @@ import path from "path";
 import { Construct, Stack, StackProps } from "@aws-cdk/core";
 import { ApplicationLoadBalancer } from "@aws-cdk/aws-elasticloadbalancingv2";
 import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
-import { Secret } from "@aws-cdk/aws-secretsmanager";
+// import { Secret } from "@aws-cdk/aws-secretsmanager";
 import { Vpc, Port } from "@aws-cdk/aws-ec2";
 
 import {
@@ -20,6 +20,15 @@ import DatabaseStack from "./DatabaseStack";
 export default class ThreeTierWebAppStack extends Stack {
   private assetPath = path.join(__dirname, "..", "..", "src", "ecs");
 
+  private databaseStack: DatabaseStack;
+
+  private rdsSecret(name: string) {
+    return EcsSecret.fromSecretsManager(
+      this.databaseStack.database.secret!,
+      name
+    );
+  }
+
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
@@ -31,8 +40,9 @@ export default class ThreeTierWebAppStack extends Stack {
     });
 
     const cacheStack = new CacheStack(this, "CacheStack", { vpc });
-    const databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
+    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
 
+////////////////////////////////////////////////////////////////////////////////
     const cluster = new Cluster(this, "Cluster", {
       vpc,
       clusterName: "ThreeTierWebApp"
@@ -43,11 +53,11 @@ export default class ThreeTierWebAppStack extends Stack {
       memoryLimitMiB: 512
     });
 
-    const rdsSecret = Secret.fromSecretCompleteArn(
-      this,
-      "DatabaseSecret",
-      databaseStack.database.secret!.secretFullArn!
-    );
+    // const rdsSecret = Secret.fromSecretCompleteArn(
+    //   this,
+    //   "DatabaseSecret",
+    //   databaseStack.database.secret!.secretFullArn!
+    // );
 
     taskDefinition
       .addContainer("LaravelContainer", {
@@ -65,12 +75,12 @@ export default class ThreeTierWebAppStack extends Stack {
           REDIS_CLIENT: "predis"
         },
         secrets: {
-          DB_CONNECTION: EcsSecret.fromSecretsManager(rdsSecret, "engine"),
-          DB_DATABASE: EcsSecret.fromSecretsManager(rdsSecret, "dbname"),
-          DB_HOST: EcsSecret.fromSecretsManager(rdsSecret, "host"),
-          DB_PORT: EcsSecret.fromSecretsManager(rdsSecret, "port"),
-          DB_USERNAME: EcsSecret.fromSecretsManager(rdsSecret, "username"),
-          DB_PASSWORD: EcsSecret.fromSecretsManager(rdsSecret, "password")
+          DB_CONNECTION: this.rdsSecret("engine"),
+          DB_DATABASE: this.rdsSecret("dbname"),
+          DB_HOST: this.rdsSecret("host"),
+          DB_PORT: this.rdsSecret("port"),
+          DB_USERNAME: this.rdsSecret("username"),
+          DB_PASSWORD: this.rdsSecret("password")
         }
       })
       .addPortMappings({
@@ -84,9 +94,11 @@ export default class ThreeTierWebAppStack extends Stack {
       desiredCount: 1
     });
 
-    databaseStack.database.connections.allowFrom(
+    const { database } = this.databaseStack;
+
+    database.connections.allowFrom(
       service,
-      Port.tcp(databaseStack.database.instanceEndpoint.port)
+      Port.tcp(database.instanceEndpoint.port)
     );
 
     loadBalancer
@@ -95,5 +107,6 @@ export default class ThreeTierWebAppStack extends Stack {
         port: 8000,
         targets: [service]
       });
+////////////////////////////////////////////////////////////////////////////////
   }
 }
