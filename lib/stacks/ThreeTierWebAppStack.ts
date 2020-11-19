@@ -22,27 +22,27 @@ export default class ThreeTierWebAppStack extends Stack {
 
   private databaseStack: DatabaseStack;
 
-  private rdsSecret(name: string) {
-    return EcsSecret.fromSecretsManager(
-      this.databaseStack.database.secret!,
-      name
-    );
-  }
+  private rdsSecret = (name: string) => EcsSecret.fromSecretsManager(
+    this.databaseStack.database.secret!,
+    name
+  );
 
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
     const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
 
+    //// Data Tier
+    const cacheStack = new CacheStack(this, "CacheStack", { vpc });
+    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
+
+    //// Integration Tier
     const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
       vpc,
       internetFacing: true
     });
 
-    const cacheStack = new CacheStack(this, "CacheStack", { vpc });
-    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
-
-////////////////////////////////////////////////////////////////////////////////
+    //// Web Tier
     const cluster = new Cluster(this, "Cluster", {
       vpc,
       clusterName: "ThreeTierWebApp"
@@ -52,12 +52,6 @@ export default class ThreeTierWebAppStack extends Stack {
       cpu: 256,
       memoryLimitMiB: 512
     });
-
-    // const rdsSecret = Secret.fromSecretCompleteArn(
-    //   this,
-    //   "DatabaseSecret",
-    //   databaseStack.database.secret!.secretFullArn!
-    // );
 
     taskDefinition
       .addContainer("LaravelContainer", {
@@ -107,6 +101,5 @@ export default class ThreeTierWebAppStack extends Stack {
         port: 8000,
         targets: [service]
       });
-////////////////////////////////////////////////////////////////////////////////
   }
 }
