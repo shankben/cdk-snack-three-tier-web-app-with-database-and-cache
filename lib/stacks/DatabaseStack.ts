@@ -4,17 +4,17 @@ import {
   InstanceClass,
   InstanceSize,
   InstanceType,
-  IVpc,
-  SubnetType
+  SubnetType,
+  IVpc
 } from "@aws-cdk/aws-ec2";
 
 import {
-  Credentials,
   DatabaseInstance,
   DatabaseInstanceEngine,
   MysqlEngineVersion,
   SubnetGroup
 } from "@aws-cdk/aws-rds";
+
 
 export interface DatabaseStackProps extends NestedStackProps {
   vpc: IVpc;
@@ -41,7 +41,6 @@ export default class DatabaseStack extends NestedStack {
       vpc,
       subnetGroup,
       allocatedStorage: 10,
-      credentials: Credentials.fromGeneratedSecret("user"),
       databaseName: "app",
       instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
       maxAllocatedStorage: 20,

@@ -1,5 +1,6 @@
 import "source-map-support/register";
 import { App } from "@aws-cdk/core";
+
 import ThreeTierWebAppStack from "../lib/stacks/ThreeTierWebAppStack";
 
 const app = new App();

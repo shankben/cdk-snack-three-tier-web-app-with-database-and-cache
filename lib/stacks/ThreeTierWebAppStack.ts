@@ -1,33 +1,99 @@
+import path from "path";
 import { Construct, Stack, StackProps } from "@aws-cdk/core";
-import { Vpc } from "@aws-cdk/aws-ec2";
+import { ApplicationLoadBalancer } from "@aws-cdk/aws-elasticloadbalancingv2";
+import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
+import { Secret } from "@aws-cdk/aws-secretsmanager";
+import { Vpc, Port } from "@aws-cdk/aws-ec2";
 
-// import { Effect, PolicyStatement } from "@aws-cdk/aws-iam";
-// import Database from "../constructs/Database";
-// import ElastiCacheCluster from "../constructs/ElastiCacheCluster";
-// import CacheStack from "../stacks/CacheStack";
+import {
+  AwsLogDriver,
+  Cluster,
+  ContainerImage,
+  FargateService,
+  FargateTaskDefinition,
+  Secret as EcsSecret
+} from "@aws-cdk/aws-ecs";
 
-import DatabaseStack from "../stacks/DatabaseStack";
-import WebServiceStack from "../stacks/WebServiceStack";
+import CacheStack from "./CacheStack";
+import DatabaseStack from "./DatabaseStack";
 
-export default class TheStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+export default class ThreeTierWebAppStack extends Stack {
+  private assetPath = path.join(__dirname, "..", "..", "src", "ecs");
+
+  constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
-
-    // const getSecretsPolicy = new PolicyStatement({
-    //   resources: [dbInstance.secret!.secretArn],
-    //   actions: ["secretsmanager:GetSecretValue"],
-    //   effect: Effect.ALLOW
-    // });
 
     const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
 
-    // const cacheStack = new CacheStack(this, "CacheStack", { vpc });
+    const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
+      vpc,
+      internetFacing: true
+    });
+
+    const cacheStack = new CacheStack(this, "CacheStack", { vpc });
     const databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
 
-    new WebServiceStack(this, "WebServiceStack", {
+    const cluster = new Cluster(this, "Cluster", {
       vpc,
-      database: databaseStack.database,
-      // cluster: cacheStack.cluster
+      clusterName: "ThreeTierWebApp"
     });
+
+    const taskDefinition = new FargateTaskDefinition(this, "TaskDef", {
+      cpu: 256,
+      memoryLimitMiB: 512
+    });
+
+    const rdsSecret = Secret.fromSecretCompleteArn(
+      this,
+      "DatabaseSecret",
+      databaseStack.database.secret!.secretFullArn!
+    );
+
+    taskDefinition
+      .addContainer("LaravelContainer", {
+        image: ContainerImage.fromAsset(path.join(this.assetPath, "laravel")),
+        logging: new AwsLogDriver({
+          streamPrefix: "laravel",
+          logGroup: new LogGroup(this, "LaravelLogGroup", {
+            logGroupName: "/aws/ecs/laravel",
+            retention: RetentionDays.ONE_DAY
+          })
+        }),
+        environment: {
+          REDIS_HOST: cacheStack.cluster.attrRedisEndpointAddress,
+          REDIS_PORT: cacheStack.cluster.attrRedisEndpointPort,
+          REDIS_CLIENT: "predis"
+        },
+        secrets: {
+          DB_CONNECTION: EcsSecret.fromSecretsManager(rdsSecret, "engine"),
+          DB_DATABASE: EcsSecret.fromSecretsManager(rdsSecret, "dbname"),
+          DB_HOST: EcsSecret.fromSecretsManager(rdsSecret, "host"),
+          DB_PORT: EcsSecret.fromSecretsManager(rdsSecret, "port"),
+          DB_USERNAME: EcsSecret.fromSecretsManager(rdsSecret, "username"),
+          DB_PASSWORD: EcsSecret.fromSecretsManager(rdsSecret, "password")
+        }
+      })
+      .addPortMappings({
+        containerPort: 8000
+      });
+
+    const service = new FargateService(this, "FargateService", {
+      cluster,
+      taskDefinition,
+      serviceName: "LaravelService",
+      desiredCount: 1
+    });
+
+    databaseStack.database.connections.allowFrom(
+      service,
+      Port.tcp(databaseStack.database.instanceEndpoint.port)
+    );
+
+    loadBalancer
+      .addListener("Listener", { port: 80 })
+      .addTargets("FargateServiceTarget", {
+        port: 8000,
+        targets: [service]
+      });
   }
 }
