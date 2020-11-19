@@ -23,7 +23,6 @@ for v in ${LARAVEL_VARS[@]}; do
   echo "$v=${!v}" >> /laravel/app/.env
 done
 
-env
 
 if [ "${1#-}" != "$1" ]; then
   set -- /sbin/tini -- composer "$@"
