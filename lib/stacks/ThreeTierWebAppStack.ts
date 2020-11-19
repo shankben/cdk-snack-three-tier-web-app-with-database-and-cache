@@ -61,28 +61,26 @@ export default class ThreeTierWebAppStack extends Stack {
     };
   }
 
-  private addLaravelContainerToTask() {
-    this.taskDefinition
-      .addContainer("LaravelContainer", {
-        ...this.containerDefinitionForFlavor(),
-        environment: {
-          REDIS_HOST: this.cacheStack.cluster.attrRedisEndpointAddress,
-          REDIS_PORT: this.cacheStack.cluster.attrRedisEndpointPort,
-          REDIS_CLIENT: "predis"
-        },
-        secrets: {
-          DB_CONNECTION: this.rdsSecret("engine"),
-          DB_DATABASE: this.rdsSecret("dbname"),
-          DB_HOST: this.rdsSecret("host"),
-          DB_PORT: this.rdsSecret("port"),
-          DB_USERNAME: this.rdsSecret("username"),
-          DB_PASSWORD: this.rdsSecret("password")
-        }
-      })
-      .addPortMappings({
-        containerPort: this.containerPort
-      });
-  }
+  private addLaravelContainerToTask = () => this.taskDefinition
+    .addContainer("LaravelContainer", {
+      ...this.containerDefinitionForFlavor(),
+      environment: {
+        REDIS_HOST: this.cacheStack.cluster.attrRedisEndpointAddress,
+        REDIS_PORT: this.cacheStack.cluster.attrRedisEndpointPort,
+        REDIS_CLIENT: "predis"
+      },
+      secrets: {
+        DB_CONNECTION: this.rdsSecret("engine"),
+        DB_DATABASE: this.rdsSecret("dbname"),
+        DB_HOST: this.rdsSecret("host"),
+        DB_PORT: this.rdsSecret("port"),
+        DB_USERNAME: this.rdsSecret("username"),
+        DB_PASSWORD: this.rdsSecret("password")
+      }
+    })
+    .addPortMappings({
+      containerPort: this.containerPort
+    });
 
   // TODO
   // private addDjangoContainerToTask() { }
