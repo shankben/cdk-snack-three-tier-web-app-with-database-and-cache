@@ -1,5 +1,5 @@
 import path from "path";
-import { Construct, Stack, StackProps } from "@aws-cdk/core";
+import { Construct, Stack, StackProps, RemovalPolicy } from "@aws-cdk/core";
 import { ApplicationLoadBalancer } from "@aws-cdk/aws-elasticloadbalancingv2";
 import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
 // import { Secret } from "@aws-cdk/aws-secretsmanager";
@@ -60,7 +60,8 @@ export default class ThreeTierWebAppStack extends Stack {
           streamPrefix: "laravel",
           logGroup: new LogGroup(this, "LaravelLogGroup", {
             logGroupName: "/aws/ecs/laravel",
-            retention: RetentionDays.ONE_DAY
+            retention: RetentionDays.ONE_DAY,
+            removalPolicy: RemovalPolicy.DESTROY
           })
         }),
         environment: {
