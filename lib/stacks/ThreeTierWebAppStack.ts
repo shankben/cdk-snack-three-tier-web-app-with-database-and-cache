@@ -17,11 +17,19 @@ import CacheStack from "./CacheStack";
 import DatabaseStack from "./DatabaseStack";
 
 export enum Flavor {
-  Laravel = "laravel"
+  Laravel = "laravel",
+  Express = "express",
+}
+
+
+export enum DatabaseFlavor {
+  AuroraMySQL = "auroramysql",
+  MySQL = "mysql",
 }
 
 export interface ThreeTierWebAppStackProps extends StackProps {
   flavor: Flavor;
+  databaseFlavor: DatabaseFlavor;
 }
 
 export default class ThreeTierWebAppStack extends Stack {
@@ -30,12 +38,13 @@ export default class ThreeTierWebAppStack extends Stack {
   private readonly containerPort = 8000;
 
   private flavor: Flavor = Flavor.Laravel;
+  private databaseFlavor: DatabaseFlavor = DatabaseFlavor.AuroraMySQL;
   private cacheStack: CacheStack;
   private databaseStack: DatabaseStack;
   private taskDefinition: FargateTaskDefinition;
 
   private rdsSecret = (name: string) => EcsSecret.fromSecretsManager(
-    this.databaseStack.database.secret!,
+    this.databaseStack.secret!,
     name
   );
 
@@ -45,6 +54,9 @@ export default class ThreeTierWebAppStack extends Stack {
       case Flavor.Laravel:
         name = Flavor.Laravel.toString();
         break;
+        case Flavor.Express:
+          name = Flavor.Express.toString();
+          break;
       default:
         throw new Error("Mmmm...");
     }
@@ -60,6 +72,28 @@ export default class ThreeTierWebAppStack extends Stack {
       })
     };
   }
+
+  private addExpressContainerToTask = () => this.taskDefinition
+    .addContainer("ExpressContainer", {
+      ...this.containerDefinitionForFlavor(),
+      environment: {
+        REDIS_HOST: this.cacheStack.cluster.attrRedisEndpointAddress,
+        REDIS_PORT: this.cacheStack.cluster.attrRedisEndpointPort,
+        REDIS_CLIENT: "predis"
+      },
+      secrets: {
+        DB_CONNECTION: this.rdsSecret("engine"),
+        DB_DATABASE: this.rdsSecret("dbname"),
+        DB_HOST: this.rdsSecret("host"),
+        DB_PORT: this.rdsSecret("port"),
+        DB_USERNAME: this.rdsSecret("username"),
+        DB_PASSWORD: this.rdsSecret("password")
+      }
+    })
+    .addPortMappings({
+      containerPort: this.containerPort
+    });
+
 
   private addLaravelContainerToTask = () => this.taskDefinition
     .addContainer("LaravelContainer", {
@@ -92,12 +126,16 @@ export default class ThreeTierWebAppStack extends Stack {
     super(scope, id, props);
 
     this.flavor = props.flavor;
+    this.databaseFlavor = props.databaseFlavor;
 
     const vpc = new Vpc(this, "Vpc", { maxAzs: 2 });
 
     //// Data Tier
     this.cacheStack = new CacheStack(this, "CacheStack", { vpc });
-    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { vpc });
+    this.databaseStack = new DatabaseStack(this, "DatabaseStack", { 
+      vpc,
+      flavor: this.databaseFlavor, 
+    });
 
     //// Web Tier
     const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
@@ -120,6 +158,9 @@ export default class ThreeTierWebAppStack extends Stack {
       case Flavor.Laravel:
         this.addLaravelContainerToTask();
         break;
+        case Flavor.Express:
+          this.addExpressContainerToTask();
+          break;
       default:
         throw new Error("Sounds tasty...");
     }
@@ -131,12 +172,28 @@ export default class ThreeTierWebAppStack extends Stack {
       desiredCount: 1
     });
 
-    const { database } = this.databaseStack;
+    const { 
+      database, 
+      cluster: databaseCluster 
+    } = this.databaseStack;
 
-    database.connections.allowFrom(
-      service,
-      Port.tcp(database.instanceEndpoint.port)
-    );
+    switch(this.databaseFlavor){
+      case DatabaseFlavor.AuroraMySQL:
+        if (databaseCluster){
+          databaseCluster.connections.allowFrom(
+            service,
+            Port.tcp(databaseCluster.clusterEndpoint.port)
+          );
+        }
+      case DatabaseFlavor.MySQL:
+        if (database){
+          database.connections.allowFrom(
+            service,
+            Port.tcp(database.instanceEndpoint.port)
+          );
+        }
+      default:
+    }
 
     const {
       securityGroup: cacheSecurityGroup,
