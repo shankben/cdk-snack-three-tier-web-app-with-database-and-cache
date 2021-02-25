@@ -1,6 +1,6 @@
 cdk.context.json
 secrets/
-src/fargate/firebase-listener-proxy/scripts/
+assets/fargate/firebase-listener-proxy/scripts/
 dist/
 
 !jest.config.js
